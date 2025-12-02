@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  luna-app:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - NODE_ENV=production
+      - NPM_CONFIG_PRODUCTION=false
+    command: >
+      sh -c "
+        npm install &&
+        npm run build:prod &&
+        echo 'Build completed successfully' &&
+        ls -la dist/ &&
+        python3 -m http.server 5173 --directory /app/dist
+      "
+    ports:
+      - "8080:5173"
