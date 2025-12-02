@@ -3,64 +3,25 @@ version: '3.8'
 services:
   luna-app:
     image: node:22-alpine
-    working_dir: /tmp/luna
+    working_dir: /app
     environment:
       - NODE_ENV=production
       - NPM_CONFIG_PRODUCTION=false
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     command: >
       sh -c "
-        echo '🚀 Iniciando deployment...' &&
-        apk add --no-cache git nginx &&
-        echo '📦 Limpiando directorio...' &&
-        rm -rf /tmp/luna &&
-        echo '📦 Clonando repositorio...' &&
-        git clone https://github.com/xuli70/luna.git /tmp/luna &&
-        echo '📚 Instalando dependencias...' &&
-        cd /tmp/luna &&
+        echo '📦 Instalando dependencias...' &&
         npm install &&
         echo '🔨 Ejecutando build de producción...' &&
         npm run build:prod &&
         echo '✅ Build completado exitosamente!' &&
-        echo '📁 Creando directorio nginx...' &&
-        mkdir -p /var/www/version: '3.8'
-services:
-  luna-app:
-    image: node:22-alpine
-    working_dir: /tmp
-    environment:
-      - NODE_ENV=production
-      - NPM_CONFIG_PRODUCTION=false
-    command: >
-      sh -c "
-        echo '🚀 Iniciando deployment...' &&
-        apk add --no-cache git nginx &&
-        echo '📦 Limpiando directorio...' &&
-        rm -rf /tmp/luna &&
-        echo '📦 Creando directorio...' &&
-        mkdir -p /tmp/luna &&
-        cd /tmp/luna &&
-        echo '📦 Clonando repositorio...' &&
-        git clone https://github.com/xuli70/luna.git . &&
-        echo '📚 Instalando dependencias...' &&
-        npm install &&
-        echo '🔨 Ejecutando build de producción...' &&
-        npm run build:prod &&
-        echo '✅ Build completado exitosamente!' &&
-        echo '📁 Creando directorio nginx...' &&
+        echo '📁 Copiando archivos a nginx...' &&
         mkdir -p /var/www/html &&
-        echo '📁 Copiando archivos a nginx...' &&
         cp -r dist/* /var/www/html/ &&
+        echo '🌐 Instalando nginx...' &&
+        apk add --no-cache nginx &&
         echo '📁 Verificando contenido de nginx html/' &&
-        ls -la /var/www/html/ &&
-        echo '🌐 Iniciando nginx...' &&
-        nginx -g 'daemon off;'
-      "
-    ports:
-      - "3000:80"
-    restart: unless-stoppedhtml &&
-        echo '📁 Copiando archivos a nginx...' &&
-        cp -r dist/* /var/www/html/ &&
-        echo '📁 Contenido de nginx html/' &&
         ls -la /var/www/html/ &&
         echo '🌐 Iniciando nginx...' &&
         nginx -g 'daemon off;'
