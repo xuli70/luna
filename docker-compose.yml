@@ -5,12 +5,10 @@ services:
     image: node:22-alpine
     working_dir: /app
     environment:
-      NODE_ENV: production
-      NPM_CONFIG_PRODUCTION: "false"
-    command: |
+      - NODE_ENV=production
+      - NPM_CONFIG_PRODUCTION=false
+    command: >
       sh -c "
-        set -e
-
         echo '📦 Instalando dependencias del sistema...' &&
         apk add --no-cache git nginx &&
         echo '📦 Preparando directorio...' &&
@@ -24,7 +22,7 @@ services:
         npm run build:prod &&
         echo '✅ Build completado exitosamente!' &&
         echo '📁 Preparando directorio nginx...' &&
-        rm -rf /var/lib/nginx/html/* &&
+        rm -rf /var/lib/nginx/html/* 2>/dev/null || true &&
         mkdir -p /var/lib/nginx/html &&
         echo '📁 Copiando archivos...' &&
         cp -r dist/* /var/lib/nginx/html/ &&
@@ -32,23 +30,7 @@ services:
         ls -la /var/lib/nginx/html/ &&
         echo '🔧 Configurando nginx...' &&
         mkdir -p /run/nginx &&
-        cat > /etc/nginx/http.d/default.conf << 'NGINXCONF'
-        server {
-            listen 80;
-            server_name _;
-            root /var/lib/nginx/html;
-            index index.html;
-
-            location / {
-                try_files $uri $uri/ /index.html;
-            }
-
-            location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
-                expires 1y;
-                add_header Cache-Control "public, immutable";
-            }
-        }
-        NGINXCONF
+        printf 'server {\\\\n  listen 80;\\\\n  server_name _;\\\\n  root /var/lib/nginx/html;\\\\n  index index.html;\\\\n  location / {\\\\n    try_files \\\\$uri \\\\$uri/ /index.html;\\\\n  }\\\\n}\\\\n' > /etc/nginx/http.d/default.conf &&
         echo '🌐 Iniciando nginx...' &&
         nginx -g 'daemon off;'
       "
