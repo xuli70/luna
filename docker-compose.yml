@@ -2,11 +2,8 @@ version: '3.8'
 
 services:
   luna-app:
-    image: node:22-alpine
-    working_dir: /tmp/luna
-    environment:
-      - NODE_ENV=production
-      - NPM_CONFIG_PRODUCTION=false
+    image: nginx:alpine
+    working_dir: /app
     command: >
       sh -c "
         echo '🚀 Iniciando deployment...' &&
@@ -19,11 +16,11 @@ services:
         echo '🔨 Ejecutando build de producción...' &&
         npm run build:prod &&
         echo '✅ Build completado exitosamente!' &&
-        echo '📁 Contenido del directorio dist/' &&
-        ls -la dist/ &&
-        echo '🌐 Iniciando servidor HTTP...' &&
-        python3 -m http.server 3000 --directory /tmp/luna/dist --bind 0.0.0.0
+        echo '📁 Copiando archivos a nginx...' &&
+        cp -r dist/* /usr/share/nginx/html/ &&
+        echo '🌐 Iniciando nginx...' &&
+        nginx -g 'daemon off;'
       "
     ports:
-      - "3000:3000"
+      - "3000:80"
     restart: unless-stopped
