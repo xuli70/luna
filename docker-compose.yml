@@ -1,5 +1,4 @@
 version: '3.8'
-
 services:
   luna-app:
     image: node:22-alpine
@@ -9,6 +8,8 @@ services:
       - NPM_CONFIG_PRODUCTION=false
     command: >
       sh -c "
+        echo 'Instalando git...' &&
+        apk add --no-cache git &&
         echo 'Clonando repositorio...' &&
         git clone https://github.com/xuli70/luna.git /tmp/luna &&
         cd /tmp/luna &&
