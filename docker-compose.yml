@@ -2,14 +2,18 @@ version: '3.8'
 
 services:
   luna-app:
-    image: nginx:alpine
-    working_dir: /app
+    image: node:22-alpine
+    working_dir: /tmp/luna
+    environment:
+      - NODE_ENV=production
+      - NPM_CONFIG_PRODUCTION=false
     command: >
       sh -c "
         echo '🚀 Iniciando deployment...' &&
-        apk add --no-cache git &&
+        apk add --no-cache git nginx &&
         echo '📦 Clonando repositorio...' &&
-        git clone https://github.com/xuli70/luna.git /tmp/luna &&
+        git clone https://github.com/xuli70/luna.git /tmp/luna ||
+        (rm -rf /tmp/luna && git clone https://github.com/xuli70/luna.git /tmp/luna) &&
         echo '📚 Instalando dependencias...' &&
         cd /tmp/luna &&
         npm install &&
@@ -17,7 +21,10 @@ services:
         npm run build:prod &&
         echo '✅ Build completado exitosamente!' &&
         echo '📁 Copiando archivos a nginx...' &&
-        cp -r dist/* /usr/share/nginx/html/ &&
+        rm -rf /var/www/html/* &&
+        cp -r dist/* /var/www/html/ &&
+        echo '📁 Contenido de nginx html/' &&
+        ls -la /var/www/html/ &&
         echo '🌐 Iniciando nginx...' &&
         nginx -g 'daemon off;'
       "
