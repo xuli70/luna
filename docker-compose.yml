@@ -3,29 +3,32 @@ version: '3.8'
 services:
   luna-app:
     image: node:22-alpine
-    working_dir: /app
+    working_dir: /tmp/luna
     environment:
       - NODE_ENV=production
       - NPM_CONFIG_PRODUCTION=false
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     command: >
       sh -c "
         echo '📦 Instalando dependencias...' &&
+        apk add --no-cache git nginx &&
+        mkdir -p /tmp/luna &&
+        cd /tmp/luna &&
+        git clone https://github.com/xuli70/luna.git . &&
         npm install &&
         echo '🔨 Ejecutando build de producción...' &&
         npm run build:prod &&
         echo '✅ Build completado exitosamente!' &&
-        echo '📁 Copiando archivos a nginx...' &&
         mkdir -p /var/www/html &&
         cp -r dist/* /var/www/html/ &&
-        echo '🌐 Instalando nginx...' &&
-        apk add --no-cache nginx &&
-        echo '📁 Verificando contenido de nginx html/' &&
-        ls -la /var/www/html/ &&
         echo '🌐 Iniciando nginx...' &&
         nginx -g 'daemon off;'
       "
     ports:
       - "3000:80"
     restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
