@@ -3,36 +3,55 @@ version: '3.8'
 services:
   luna-app:
     image: node:22-alpine
-    working_dir: /tmp/luna
+    working_dir: /app
     environment:
-      - NODE_ENV=production
-      - NPM_CONFIG_PRODUCTION=false
-    command: >
+      NODE_ENV: production
+      NPM_CONFIG_PRODUCTION: "false"
+    command: |
       sh -c "
-        echo '📦 Instalando dependencias...' &&
+        set -e
+
+        echo '📦 Instalando dependencias del sistema...' &&
         apk add --no-cache git nginx &&
-        mkdir -p /tmp/luna &&
-        cd /tmp/luna &&
+        echo '📦 Preparando directorio...' &&
+        rm -rf /app/* /app/.* 2>/dev/null || true &&
+        cd /app &&
+        echo '📦 Clonando repositorio...' &&
         git clone https://github.com/xuli70/luna.git . &&
+        echo '📚 Instalando dependencias npm...' &&
         npm install &&
         echo '🔨 Ejecutando build de producción...' &&
         npm run build:prod &&
         echo '✅ Build completado exitosamente!' &&
-        echo '📁 Copiando archivos a nginx...' &&
-        cp -r dist/* /usr/share/nginx/html/ &&
+        echo '📁 Preparando directorio nginx...' &&
+        rm -rf /var/lib/nginx/html/* &&
+        mkdir -p /var/lib/nginx/html &&
+        echo '📁 Copiando archivos...' &&
+        cp -r dist/* /var/lib/nginx/html/ &&
         echo '📁 Verificando contenido...' &&
-        ls -la /usr/share/nginx/html/ &&
-        echo '🔧 Configurando nginx para SPA...' &&
-        echo 'server { listen 80; root /usr/share/nginx/html; index index.html; location / { try_files \\$uri \\$uri/ /index.html; } }' > /etc/nginx/http.d/default.conf &&
+        ls -la /var/lib/nginx/html/ &&
+        echo '🔧 Configurando nginx...' &&
+        mkdir -p /run/nginx &&
+        cat > /etc/nginx/http.d/default.conf << 'NGINXCONF'
+        server {
+            listen 80;
+            server_name _;
+            root /var/lib/nginx/html;
+            index index.html;
+
+            location / {
+                try_files $uri $uri/ /index.html;
+            }
+
+            location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+                expires 1y;
+                add_header Cache-Control "public, immutable";
+            }
+        }
+        NGINXCONF
         echo '🌐 Iniciando nginx...' &&
         nginx -g 'daemon off;'
       "
     ports:
       - "3000:80"
     restart: unless-stopped
-    healthcheck:
-      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost/']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
