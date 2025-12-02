@@ -4,18 +4,26 @@ services:
   luna-app:
     image: node:22-alpine
     working_dir: /app
-    volumes:
-      - .:/app
     environment:
       - NODE_ENV=production
       - NPM_CONFIG_PRODUCTION=false
     command: >
       sh -c "
+        echo 'Clonando repositorio...' &&
+        git clone https://github.com/xuli70/luna.git /tmp/luna &&
+        cd /tmp/luna &&
+        echo 'Instalando dependencias...' &&
         npm install &&
+        echo 'Ejecutando build...' &&
         npm run build:prod &&
-        echo 'Build completed successfully' &&
+        echo 'Build completado exitosamente!' &&
+        echo 'Archivos generados:' &&
         ls -la dist/ &&
-        python3 -m http.server 5173 --directory /app/dist
+        echo 'Iniciando servidor web...' &&
+        cd dist &&
+        python3 -m http.server 5173 --bind 0.0.0.0
       "
     ports:
       - "8080:5173"
+    expose:
+      - "5173"
