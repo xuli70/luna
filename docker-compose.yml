@@ -25,6 +25,6 @@ services:
         python3 -m http.server 5173 --bind 0.0.0.0
       "
     ports:
-      - "8080:5173"
+      - "3000:5173"
     expose:
       - "5173"
