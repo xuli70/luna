@@ -153,22 +153,22 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
     observer.position.y = 0.25;
     scene.add(observer);
 
-    // Moon
-    const moonGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+    // Moon - tamaño reducido y color lunar realista (blanco grisáceo)
+    const moonGeometry = new THREE.SphereGeometry(0.15, 32, 32);
     const moonMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffb800,
-      emissive: 0xffb800,
-      emissiveIntensity: 0.3,
+      color: 0xe8e8e8,      // Blanco grisáceo lunar
+      emissive: 0xd0d0d0,   // Emisión sutil gris claro
+      emissiveIntensity: 0.4,
     });
     const moon = new THREE.Mesh(moonGeometry, moonMaterial);
     scene.add(moon);
 
-    // Moon glow
-    const glowGeometry = new THREE.SphereGeometry(0.6, 32, 32);
+    // Moon glow - ajustado al nuevo tamaño
+    const glowGeometry = new THREE.SphereGeometry(0.22, 32, 32);
     const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffb800,
+      color: 0xc0c0c0,      // Plateado
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.2,
     });
     const moonGlow = new THREE.Mesh(glowGeometry, glowMaterial);
     scene.add(moonGlow);
@@ -335,11 +335,11 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
     moon.position.lerp(targetPosition, 0.1);
     moonGlow.position.copy(moon.position);
 
-    // Update altitude line
+    // Update altitude line - desde la Luna hasta su proyección en el horizonte (y=0)
     const lineGeometry = new THREE.BufferGeometry();
     lineGeometry.setFromPoints([
-      new THREE.Vector3(0, 0.5, 0),
       moon.position.clone(),
+      new THREE.Vector3(moon.position.x, 0.02, moon.position.z), // Proyección en el horizonte
     ]);
     altitudeLine.geometry.dispose();
     altitudeLine.geometry = lineGeometry;
@@ -471,7 +471,7 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
     // Marcador de salida (rise) - Verde
     if (lunarTrack.risePoint) {
       const pos = trackPointToVector3(lunarTrack.risePoint, radius);
-      const riseGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+      const riseGeometry = new THREE.SphereGeometry(0.08, 16, 16);
       const riseMaterial = new THREE.MeshBasicMaterial({
         color: 0x00ff88,
         transparent: true,
@@ -486,7 +486,7 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
     // Marcador de puesta (set) - Rojo
     if (lunarTrack.setPoint) {
       const pos = trackPointToVector3(lunarTrack.setPoint, radius);
-      const setGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+      const setGeometry = new THREE.SphereGeometry(0.08, 16, 16);
       const setMaterial = new THREE.MeshBasicMaterial({
         color: 0xff4444,
         transparent: true,
@@ -498,12 +498,12 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
       sceneRef.current.setMarker = newSetMarker;
     }
 
-    // Marcador de tránsito (culminación) - Amarillo brillante
+    // Marcador de tránsito (culminación) - Naranja/ámbar (diferente de la Luna blanca)
     if (lunarTrack.transitPoint) {
       const pos = trackPointToVector3(lunarTrack.transitPoint, radius);
-      const transitGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+      const transitGeometry = new THREE.SphereGeometry(0.08, 16, 16);
       const transitMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffff00,
+        color: 0xffa500,      // Naranja (contrasta con Luna blanca)
         transparent: true,
         opacity: 0.9,
       });
@@ -583,7 +583,7 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
                 )}
                 {lunarTrack.transitPoint && (
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-[#ffff00]" />
+                    <div className="w-2 h-2 rounded-full bg-[#ffa500]" />
                     <span className="text-text-tertiary">Culminación</span>
                   </div>
                 )}
@@ -618,7 +618,7 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
             )}
             {lunarTrack.transitPoint && (
               <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-[#ffff00]" />
+                <div className="w-2 h-2 rounded-full bg-[#ffa500]" />
                 <span className="text-text-tertiary">Culminación</span>
               </div>
             )}
