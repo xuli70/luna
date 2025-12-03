@@ -78,6 +78,7 @@ En la página de configuración de la aplicación:
    - **Dockerfile Location**: `/Dockerfile` (debe detectarlo automáticamente)
    - **Docker Compose File**: (dejar vacío)
    - **Base Directory**: `/` (raíz del proyecto)
+   - **Nota**: El Dockerfile usa **npm** (no pnpm) aprovechando el `package-lock.json` existente
 
 3. **Port Settings**:
    - **Port Exposes**: `80` (el puerto que expone el contenedor)
@@ -297,7 +298,8 @@ Si sigues teniendo problemas:
 ---
 
 **Nota**: Esta configuración usa un Dockerfile multi-stage optimizado que:
-- Construye la app con Node.js 22
+- Construye la app con Node.js 22 usando **npm** (aprovecha `package-lock.json` existente)
+- Usa `npm ci` para instalación rápida y determinista de dependencias
 - Sirve los archivos estáticos con nginx
-- Incluye health checks
-- Está optimizado para producción con cache y compresión
+- Incluye health checks en `/health` endpoint
+- Está optimizado para producción con cache y compresión gzip

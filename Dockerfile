@@ -5,13 +5,10 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json package-lock.json ./
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (npm ci uses lockfile for exact versions)
+RUN npm ci
 
 # Copy source files
 COPY . .
@@ -19,7 +16,7 @@ COPY . .
 # Build the application
 ENV BUILD_MODE=prod
 ENV NODE_ENV=production
-RUN pnpm run build
+RUN npm run build
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine
