@@ -9,18 +9,22 @@ interface ControlsProps {
   location: Location;
   datetime: Date;
   timezone: string;
+  isManualDatetime: boolean;
   onLocationChange: (location: Location) => void;
   onDatetimeChange: (datetime: Date) => void;
   onTimezoneChange: (timezone: string) => void;
+  onResumeRealtime: () => void;
 }
 
 export default function Controls({
   location,
   datetime,
   timezone,
+  isManualDatetime,
   onLocationChange,
   onDatetimeChange,
   onTimezoneChange,
+  onResumeRealtime,
 }: ControlsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Location[]>([]);
@@ -223,12 +227,22 @@ export default function Controls({
                 className="w-full h-12 pl-12 pr-4 bg-bg-interactive border border-border-default rounded-lg text-body-md text-text-primary focus:outline-none focus:border-border-accent focus:ring-2 focus:ring-accent-primary/20 transition-all [color-scheme:dark]"
               />
             </div>
-            <button
-              onClick={handleUseNow}
-              className="mt-2 text-body-sm text-accent-primary hover:text-accent-primary-hover transition-colors"
-            >
-              Usar hora actual
-            </button>
+            <div className="mt-2 flex items-center gap-4">
+              <button
+                onClick={handleUseNow}
+                className="text-body-sm text-accent-primary hover:text-accent-primary-hover transition-colors"
+              >
+                Usar hora actual
+              </button>
+              {isManualDatetime && (
+                <button
+                  onClick={onResumeRealtime}
+                  className="text-body-sm text-accent-secondary hover:text-accent-secondary/80 transition-colors"
+                >
+                  Reanudar tiempo real
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Timezone Selector */}

@@ -26,9 +26,11 @@ function App() {
     location,
     datetime,
     timezone,
+    isManualDatetime,
     setLocation,
     setDatetime,
     setTimezone,
+    resumeRealtime,
   } = useLunarData({ autoUpdate: true, updateInterval: 60000 });
 
   return (
@@ -55,9 +57,11 @@ function App() {
             location={location}
             datetime={datetime}
             timezone={timezone}
+            isManualDatetime={isManualDatetime}
             onLocationChange={setLocation}
             onDatetimeChange={setDatetime}
             onTimezoneChange={setTimezone}
+            onResumeRealtime={resumeRealtime}
           />
         </div>
 

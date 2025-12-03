@@ -15,10 +15,12 @@ interface UseLunarDataReturn {
   location: Location;
   datetime: Date;
   timezone: string;
+  isManualDatetime: boolean;
   setLocation: (location: Location) => void;
   setDatetime: (datetime: Date) => void;
   setTimezone: (timezone: string) => void;
   refresh: () => void;
+  resumeRealtime: () => void;
 }
 
 // Default location: Madrid, Spain
@@ -37,6 +39,7 @@ export function useLunarData(options: UseLunarDataOptions = {}): UseLunarDataRet
   const [lunarData, setLunarData] = useState<LunarData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isManualDatetime, setIsManualDatetime] = useState<boolean>(false);
   
   // Track if location was changed by user (not initial load)
   const isUserLocationChange = useRef(false);
@@ -89,16 +92,28 @@ export function useLunarData(options: UseLunarDataOptions = {}): UseLunarDataRet
     setTimezone(validated);
   }, []);
 
-  // Auto-update interval
+  // Custom setDatetime that marks datetime as manually set
+  const setDatetimeManual = useCallback((newDatetime: Date) => {
+    setIsManualDatetime(true);
+    setDatetime(newDatetime);
+  }, []);
+
+  // Resume realtime updates
+  const resumeRealtime = useCallback(() => {
+    setIsManualDatetime(false);
+    setDatetime(new Date());
+  }, []);
+
+  // Auto-update interval (paused when datetime is manually set)
   useEffect(() => {
-    if (!autoUpdate) return;
+    if (!autoUpdate || isManualDatetime) return;
 
     const interval = setInterval(() => {
       setDatetime(new Date());
     }, updateInterval);
 
     return () => clearInterval(interval);
-  }, [autoUpdate, updateInterval]);
+  }, [autoUpdate, updateInterval, isManualDatetime]);
 
   const refresh = useCallback(() => {
     setDatetime(new Date());
@@ -111,9 +126,11 @@ export function useLunarData(options: UseLunarDataOptions = {}): UseLunarDataRet
     location,
     datetime,
     timezone,
+    isManualDatetime,
     setLocation,
-    setDatetime,
+    setDatetime: setDatetimeManual,
     setTimezone: setTimezoneWithValidation,
     refresh,
+    resumeRealtime,
   };
 }
