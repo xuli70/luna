@@ -237,7 +237,8 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
       const texture = new THREE.CanvasTexture(canvas);
       const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
       const sprite = new THREE.Sprite(spriteMaterial);
-      sprite.position.set(5.5 * Math.sin(angle), 0.3, 5.5 * Math.cos(angle));
+      // Negate X so East appears on the right when viewing from south (camera default)
+      sprite.position.set(-5.5 * Math.sin(angle), 0.3, 5.5 * Math.cos(angle));
       sprite.scale.set(0.8, 0.8, 1);
       scene.add(sprite);
       cardinalLabels.push(sprite);
@@ -323,8 +324,9 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
     const azRad = (moonPosition.azimuth * Math.PI) / 180;
 
     // Calculate 3D position
-    // Azimuth: 0 = North (positive Z), 90 = East (positive X)
-    const x = radius * Math.cos(altRad) * Math.sin(azRad);
+    // Azimuth: 0 = North (positive Z), 90 = East (negative X in Three.js right-handed system)
+    // We negate X so that East appears on the right when viewing from south (camera default)
+    const x = -radius * Math.cos(altRad) * Math.sin(azRad);
     const y = radius * Math.sin(altRad);
     const z = radius * Math.cos(altRad) * Math.cos(azRad);
 
@@ -343,7 +345,7 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
     altitudeLine.geometry = lineGeometry;
 
     // Update azimuth line (ground projection)
-    const groundX = radius * Math.sin(azRad);
+    const groundX = -radius * Math.sin(azRad);
     const groundZ = radius * Math.cos(azRad);
     const azLineGeometry = new THREE.BufferGeometry();
     azLineGeometry.setFromPoints([

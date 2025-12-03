@@ -110,11 +110,11 @@ function findTransitPoint(points: LunarTrackPoint[]): LunarTrackPoint | null {
 
 /**
  * Convierte un punto de la trayectoria a coordenadas 3D.
- * Usa el mismo sistema de coordenadas que Scene3D.tsx (líneas 294-302).
+ * Usa el mismo sistema de coordenadas que Scene3D.tsx.
  *
  * Sistema de coordenadas:
  * - Azimuth 0° = Norte (+Z)
- * - Azimuth 90° = Este (+X)
+ * - Azimuth 90° = Este (-X) - negado para que Este aparezca a la derecha mirando desde el Sur
  * - Altitude 0° = Horizonte
  * - Altitude 90° = Cenit (+Y)
  */
@@ -126,7 +126,7 @@ export function trackPointToVector3(
   const azRad = (point.azimuth * Math.PI) / 180;
 
   return {
-    x: radius * Math.cos(altRad) * Math.sin(azRad),
+    x: -radius * Math.cos(altRad) * Math.sin(azRad),
     y: radius * Math.sin(altRad),
     z: radius * Math.cos(altRad) * Math.cos(azRad),
   };
