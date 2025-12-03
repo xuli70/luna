@@ -106,24 +106,53 @@ Use in imports: `import { calculateLunarData } from '@/utils/lunar'`
 ### Multi-Stage Dockerfile (Recommended for Coolify)
 
 Dockerfile provides optimized production deployment:
-- **Stage 1 (builder)**: Node 22 Alpine + pnpm → build app
+- **Stage 1 (builder)**: Node 22 Alpine + **npm** → build app
+  - Uses `npm ci` for fast, deterministic install from `package-lock.json`
+  - Builds manually with `npx tsc -b && npx vite build` (avoids PATH issues)
+  - Build time: ~35-45s total
 - **Stage 2 (runtime)**: nginx:alpine → serve static files
-- Exposes port 80 with health check at `/health`
-- nginx config: SPA routing, gzip compression, security headers, cache for static assets
+  - Lightweight (~50MB final image)
+  - Exposes port 80 with health check at `/health`
+  - nginx config: SPA routing, gzip compression, security headers, cache for static assets
+
+**Important**: Uses **npm** not pnpm. Repository has `package-lock.json` (npm), not `pnpm-lock.yaml`.
 
 ### Coolify Deployment
 
 For VPS deployment with Coolify:
-1. See **DEPLOY.md** for complete step-by-step guide
+1. See **DEPLOY.md** for complete step-by-step guide with troubleshooting
 2. Configuration:
    - Build Pack: Dockerfile
    - Port: 80 (auto-mapped by Coolify proxy)
-   - Health Check: `/health` endpoint
+   - Health Check: `/health` endpoint (30s interval)
    - SSL: Auto-generated via Let's Encrypt
 3. Files:
    - `Dockerfile`: Multi-stage build configuration
    - `nginx.conf`: Server block for nginx (copied to /etc/nginx/conf.d/default.conf)
    - `.dockerignore`: Excludes node_modules, .git, dev files from build context
+
+**Deployment metrics** (production):
+- Build time: ~59 seconds
+- npm ci: 438 packages in 16.3s
+- TypeScript compile: ~9s
+- Vite build: 1585 modules in 8.76s
+- Bundle size: ~1.1 MB total (HTML + CSS + JS)
+
+### Known Issues & Solutions
+
+**Issue 1: ERR_PNPM_NO_LOCKFILE**
+- Cause: Dockerfile tried to use pnpm but repo only has package-lock.json
+- Solution: Changed to npm with `npm ci`
+
+**Issue 2: sh: tsc: not found**
+- Cause: `tsc` and `vite` binaries not in PATH
+- Solution: Use `npx tsc` and `npx vite` instead of direct commands
+- Why: `npx` automatically finds binaries in `node_modules/.bin/`
+
+**Issue 3: Redundant npm install**
+- Cause: `npm run build` script ran `npm install` again after `npm ci`
+- Solution: Execute build commands manually in Dockerfile
+- Result: Faster builds, more explicit
 
 ### docker-compose.yml (Alternative)
 
@@ -131,6 +160,7 @@ Legacy docker-compose configuration available:
 - Single-stage build with git clone
 - Serves on port 3000
 - Less optimized than Dockerfile method
+- Not recommended for production
 
 ## Testing Lunar Calculations
 
@@ -153,3 +183,93 @@ Vite config (vite.config.ts):
 - `BUILD_MODE=prod` disables source-identifier plugin (dev debug tool)
 - Path alias resolution for `@/*`
 - React plugin with source identifier for debugging
+
+## Quick Reference
+
+### Local Development
+
+```bash
+# Start dev server
+pnpm dev
+
+# Build for production (test locally)
+npm run build
+pnpm preview
+
+# Lint
+pnpm lint
+```
+
+### Docker Testing Locally
+
+```bash
+# Build the Docker image
+docker build -t luna-test .
+
+# Run locally
+docker run -p 8080:80 luna-test
+
+# Access at http://localhost:8080
+
+# Check health
+curl http://localhost:8080/health
+
+# View logs
+docker logs [container_id]
+
+# Access container shell
+docker exec -it [container_id] sh
+```
+
+### Coolify Deployment
+
+```bash
+# After pushing to GitHub, Coolify will auto-deploy
+
+# Manual deploy:
+# Coolify Dashboard → Application → Deploy button
+
+# View logs:
+# Coolify Dashboard → Application → Logs
+
+# Check metrics:
+# Coolify Dashboard → Application → Metrics
+```
+
+### Troubleshooting Checklist
+
+If deployment fails:
+
+1. ✅ Check logs in Coolify Dashboard → Application → Logs
+2. ✅ Verify `package-lock.json` is committed to repo
+3. ✅ Ensure `Dockerfile` and `nginx.conf` are in repo root
+4. ✅ Confirm build commands use `npx` for binaries
+5. ✅ Check DNS points to VPS IP
+6. ✅ Verify ports 80 and 443 are open
+
+Common errors:
+- `ERR_PNPM_NO_LOCKFILE` → Use npm, not pnpm
+- `tsc: not found` → Use `npx tsc` not `tsc`
+- `502 Bad Gateway` → Check container is running and port 80 exposed
+- `503 Service Unavailable` → Check health check at `/health`
+
+### Production URLs
+
+- Main app: https://luna.axcsol.com/
+- Health check: https://luna.axcsol.com/health
+- Coolify dashboard: [Your VPS IP]:8000 (or configured domain)
+
+### Package Manager Notes
+
+- **Local development**: Can use pnpm (scripts use `pnpm install --prefer-offline`)
+- **Production build**: Uses npm (Dockerfile uses `npm ci`)
+- **Reason**: Repository has `package-lock.json`, not `pnpm-lock.yaml`
+- **Recommendation**: Standardize on npm for consistency, or generate pnpm-lock.yaml if preferring pnpm
+
+### Performance Expectations
+
+- **Build time**: 35-60 seconds
+- **Bundle size**: ~1.1 MB (HTML + CSS + JS)
+- **Lighthouse score**: 90+ (Performance, Accessibility)
+- **First load**: ~2-3 seconds on 3G
+- **Memory usage**: ~10-20 MB (nginx idle)

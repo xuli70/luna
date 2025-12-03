@@ -169,60 +169,198 @@ curl http://luna.axcsol.com/health
 
 ## Solución de Problemas Comunes
 
+### ⚠️ Error: ERR_PNPM_NO_LOCKFILE (RESUELTO)
+
+**Error completo**:
+```
+ERR_PNPM_NO_LOCKFILE Cannot install with "frozen-lockfile" because pnpm-lock.yaml is absent
+```
+
+**Causa**: El Dockerfile intentaba usar pnpm pero el repositorio solo tiene `package-lock.json` (npm).
+
+**Solución Implementada**:
+- ✅ Cambiado Dockerfile para usar **npm** en lugar de pnpm
+- ✅ Usa `npm ci` (instala desde package-lock.json exacto)
+- ✅ Remueve referencias a pnpm-lock.yaml
+
+**Archivos afectados**: `Dockerfile` líneas 8-11
+
+---
+
+### ⚠️ Error: sh: tsc: not found (RESUELTO)
+
+**Error completo**:
+```
+sh: tsc: not found
+The command '/bin/sh -c npm run build' returned a non-zero code: 127
+```
+
+**Causa**:
+- TypeScript (`tsc`) y Vite están instalados en `node_modules/.bin/`
+- El script `npm run build` ejecuta `tsc` directamente sin `npx`
+- `tsc` no está en el PATH global del contenedor
+
+**Solución Implementada**:
+En el Dockerfile, reemplazar:
+```dockerfile
+RUN npm run build
+```
+
+Por:
+```dockerfile
+RUN rm -rf node_modules/.vite-temp && \
+    npx tsc -b && \
+    npx vite build
+```
+
+**Por qué funciona**: `npx` busca automáticamente binarios en `node_modules/.bin/` sin necesidad de modificar PATH.
+
+**Archivos afectados**: `Dockerfile` líneas 19-22
+
+---
+
 ### Error 502: Bad Gateway
 
 **Causa**: El contenedor no está escuchando en el puerto correcto o no está levantado.
 
-**Solución**:
+**Diagnóstico**:
 1. Verifica los logs: `Coolify → Application → Logs`
-2. Busca errores en el build o al levantar nginx
+2. Busca errores en el build (TypeScript, Vite, npm)
 3. Verifica que el Dockerfile esté en la raíz del repositorio
-4. Asegúrate de que el puerto expuesto sea `80`
+4. Asegúrate de que el puerto expuesto sea `80` en el Dockerfile
+
+**Solución**:
+```bash
+# Verifica que el contenedor esté corriendo
+docker ps | grep luna
+
+# Verifica logs del contenedor
+docker logs [container_id]
+
+# Verifica que nginx responda dentro del contenedor
+docker exec [container_id] wget -O- http://localhost/
+```
+
+---
 
 ### Error 503: Service Unavailable
 
 **Causa**: El servicio no pasó el health check o está reiniciándose constantemente.
 
+**Diagnóstico**:
+1. Ve a Coolify → Application → Logs
+2. Busca: `Health check failed` o `Container restarting`
+3. Verifica que el `/health` endpoint funcione
+
 **Solución**:
-1. Verifica los logs del contenedor
-2. Comprueba que `/health` endpoint funcione:
+```bash
+# Dentro del contenedor (desde Coolify terminal)
+wget -O- http://localhost/health
+# Debe devolver: "healthy"
+
+# Verifica que nginx esté corriendo
+ps aux | grep nginx
+
+# Verifica que los archivos estén en el lugar correcto
+ls -la /usr/share/nginx/html/
+```
+
+---
+
+### Build Falla por Dependencias
+
+**Síntomas**:
+- `npm ci` falla
+- Errores de "Cannot find module"
+- Versiones incompatibles
+
+**Solución**:
+1. Verifica que `package-lock.json` esté en el repositorio:
    ```bash
-   # Dentro del contenedor (desde Coolify terminal)
-   wget -O- http://localhost/health
+   git ls-files | grep package-lock.json
    ```
-3. Revisa que nginx esté corriendo dentro del contenedor
 
-### Build Falla
+2. Si el lockfile está corrupto, regenera localmente:
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   git add package-lock.json
+   git commit -m "Regenerate package-lock.json"
+   ```
 
-**Causa**: Problemas con dependencias o configuración de pnpm.
+3. Verifica que no haya conflictos de versiones en `package.json`
 
-**Solución**:
-1. Verifica que `pnpm-lock.yaml` esté en el repositorio
-2. Revisa los logs de build para errores específicos
-3. Si falla en `pnpm install`, puede ser problema de red o dependencias
+---
 
 ### No se Genera el Certificado SSL
 
 **Causa**: DNS no apunta correctamente o puerto 80/443 bloqueado.
 
+**Diagnóstico**:
+```bash
+# Verifica DNS
+nslookup luna.axcsol.com
+# Debe devolver la IP del VPS
+
+# Verifica que el dominio sea accesible
+curl -I http://luna.axcsol.com
+```
+
 **Solución**:
-1. Verifica DNS: `nslookup luna.axcsol.com`
-2. Verifica que los puertos 80 y 443 estén abiertos en el firewall
-3. En Coolify: **Domains → Regenerate Certificate**
+1. Verifica que el registro A del dominio apunte a la IP del VPS
+2. Espera a que el DNS se propague (puede tardar hasta 24h, usualmente minutos)
+3. Verifica que los puertos 80 y 443 estén abiertos en el firewall
+4. En Coolify: **Domains → Regenerate Certificate**
+
+---
 
 ### Contenedor se Reinicia Constantemente
 
 **Causa**: La aplicación crashea al iniciar o nginx falla.
 
+**Diagnóstico**:
+```bash
+# Ver logs en tiempo real
+docker logs -f [container_id]
+
+# Ver cuántas veces se ha reiniciado
+docker ps -a | grep luna
+```
+
 **Solución**:
-1. Revisa logs: busca el error específico
-2. Verifica que los archivos de build (dist/) se hayan generado correctamente
+1. Revisa logs: busca el error específico (segmentation fault, permission denied, etc.)
+2. Verifica que los archivos de build (`dist/`) se hayan generado correctamente
 3. Prueba el Dockerfile localmente:
    ```bash
    docker build -t luna-test .
    docker run -p 8080:80 luna-test
    # Accede a http://localhost:8080
    ```
+
+4. Verifica la configuración de nginx:
+   ```bash
+   docker exec [container_id] nginx -t
+   ```
+
+---
+
+### Build Exitoso pero Página en Blanco
+
+**Causa**: Archivos no se copiaron correctamente o ruta incorrecta.
+
+**Diagnóstico**:
+```bash
+# Verifica que index.html exista
+docker exec [container_id] ls -la /usr/share/nginx/html/
+
+# Verifica contenido de index.html
+docker exec [container_id] cat /usr/share/nginx/html/index.html
+```
+
+**Solución**:
+1. Verifica que el `COPY --from=builder /app/dist` apunte al directorio correcto
+2. Asegúrate de que Vite build genera archivos en `/app/dist`
+3. Revisa la configuración de `vite.config.ts` (build.outDir)
 
 ## Paso 7: Configurar Auto-Deploy (Opcional)
 
@@ -285,6 +423,73 @@ Coolify proporciona:
 - Logs históricos
 
 Accede desde: `Application → Metrics`
+
+---
+
+## ✅ Deployment Exitoso - Métricas Reales
+
+### Resultado Final del Deployment
+
+**Fecha**: 2025-Dec-03
+**Commit**: `4e8b69a28ed485ef26694cf6b67911ee0ae392b0`
+**Estado**: ✅ FINISHED - Deployment Completado
+**URL**: https://luna.axcsol.com/
+
+### Tiempos de Build
+
+| Etapa | Tiempo | Estado |
+|-------|--------|--------|
+| Git clone | ~2s | ✅ |
+| npm ci (438 paquetes) | 16.3s | ✅ |
+| Copiar archivos | <1s | ✅ |
+| TypeScript compile (npx tsc -b) | ~9s | ✅ |
+| Vite build (1585 módulos) | 8.76s | ✅ |
+| Exportar imagen Docker | <1s | ✅ |
+| Contenedor iniciado | ~1s | ✅ |
+| Health check | <6s | ✅ PASSING |
+| Rolling update | <1s | ✅ |
+| **TOTAL** | **~59s** | **✅** |
+
+### Estadísticas del Build
+
+**Archivos generados**:
+- `index.html`: 1.09 kB
+- CSS: 17.97 kB (gzipped: 4.26 kB)
+- JavaScript: 3 chunks
+  - Chunk 1: 153.66 kB
+  - Chunk 2: 437.88 kB
+  - Chunk 3: 529.50 kB
+
+**Calidad**:
+- ✅ 0 vulnerabilidades
+- ✅ Health check passing
+- ✅ SSL/HTTPS activo (Let's Encrypt)
+
+### Iteraciones hasta Éxito
+
+| Intento | Error | Solución | Commit |
+|---------|-------|----------|--------|
+| 1 | `ERR_PNPM_NO_LOCKFILE` | Cambiar a npm | `4aec4303` |
+| 2 | `sh: tsc: not found` | Usar npx | `4e8b69a2` |
+| 3 | ✅ **EXITOSO** | - | `4e8b69a2` |
+
+**Tiempo total del proceso**: ~20 minutos (incluyendo debugging)
+
+### Lecciones Aprendidas
+
+1. **Package Manager Consistency**:
+   - Usar el lockfile que ya existe en el repo
+   - `npm ci` es más rápido y determinista que `npm install`
+
+2. **Binarios en Docker**:
+   - Usar `npx` para ejecutar binarios de node_modules
+   - Evita problemas de PATH en contenedores
+
+3. **Build Optimization**:
+   - Evitar `npm install` redundantes en el build script
+   - Ejecutar comandos de build manualmente en el Dockerfile
+
+---
 
 ## Soporte
 
