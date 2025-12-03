@@ -56,6 +56,18 @@ Located in src/utils/lunar.ts, uses SunCalc library for astronomical calculation
 
 **Critical**: Azimuth conversion in src/utils/lunar.ts:48 adds 180° to convert from SunCalc's south-based system to north-based for UI display.
 
+### Lunar Trajectory Engine
+
+Located in src/utils/lunarTrack.ts, generates the Moon's path across the sky:
+
+1. **generateLunarTrack** (src/utils/lunarTrack.ts:21): Generates trajectory points every 10 minutes in a ±12 hour range centered on datetime. Uses `getMoonPosition()` to ensure consistent azimuth normalization.
+2. **trackPointToVector3** (src/utils/lunarTrack.ts:106): Converts altitude/azimuth (degrees) to 3D coordinates using same formula as Scene3D.
+3. **groupPointsByHorizon** (src/utils/lunarTrack.ts:122): Groups contiguous points by horizon state for rendering with different styles.
+
+**Types** (src/types/lunar.ts:70-84):
+- `LunarTrackPoint`: Individual trajectory point (datetime, altitude, azimuth, isAboveHorizon)
+- `LunarTrack`: Complete result with points array and special markers (risePoint, setPoint, transitPoint)
+
 ### Component Architecture
 
 ```
@@ -67,10 +79,29 @@ App.tsx (src/App.tsx:23) - Main orchestrator
 │   └── TimeConfig - Date/time/timezone selectors
 ├── DataCards - Display calculated results (altitude, azimuth, phase, times)
 ├── Map2D (lazy) - Leaflet map with moon direction arrow
-└── Scene3D (lazy) - Three.js celestial dome with moon position
+└── Scene3D (lazy) - Three.js celestial dome with moon position + trajectory
 ```
 
 **Lazy Loading**: Map2D and Scene3D are code-split for performance (src/App.tsx:9-10).
+
+### Scene3D Visualization
+
+The 3D dome (src/components/Scene3D.tsx) includes moon position and lunar trajectory visualization:
+
+- **Props**: Receives `location` and `datetime` in addition to moonPosition/moonIllumination
+- **Computation**: Uses `useMemo` to calculate trajectory only when location/datetime change
+- **Moon Rendering**:
+  - Small white/gray sphere (radius 0.15) - realistic lunar color (#e8e8e8)
+  - Subtle silver glow effect (radius 0.22, #c0c0c0)
+  - Blue altitude line from Moon down to horizon projection
+- **Trajectory Rendering**:
+  - Solid amber line (opacity 0.6) for segments above horizon
+  - Dashed amber line (opacity 0.2) for segments below horizon
+  - Green sphere marker (0.08 radius) at moonrise point
+  - Orange sphere marker (0.08 radius) at transit/culmination point (#ffa500)
+  - Red sphere marker (0.08 radius) at moonset point
+- **Toggle**: Checkbox in control bar to show/hide trajectory with color legend
+- **Performance**: CatmullRomCurve3 for smooth curves, geometry disposal on updates
 
 ### Coordinate Systems
 

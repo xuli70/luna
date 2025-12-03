@@ -8,7 +8,7 @@ Aplicación web interactiva para calcular y visualizar la posición de la Luna d
 - **⏰ Configuración temporal**: Selector de fecha, hora y zona horaria con manejo automático
 - **🌙 Cálculos astronómicos**: Altitud, azimut, fase lunar, porcentaje de iluminación, horarios de salida/puesta
 - **🗺️ Visualización 2D**: Mapa interactivo con flecha direccional de la Luna
-- **🌌 Visualización 3D**: Domo celeste con posición lunar interactiva
+- **🌌 Visualización 3D**: Domo celeste con posición lunar y trayectoria completa (arco nocturno)
 - **📱 Responsive**: Optimizado para móvil, tablet y escritorio
 - **🌃 Dark Mode**: Estética espacial nocturna optimizada para observación
 
@@ -73,16 +73,17 @@ Si necesitas configurar variables de entorno, Créalas en Coolify:
 src/
 ├── components/           # Componentes React
 │   ├── ui/              # Componentes UI (shadcn/ui)
-│   ├── Moon3DViewer.tsx # Visualizador 3D lunar
-│   ├── MapView.tsx      # Mapa interactivo
-│   ├── LocationSearch.tsx # Búsqueda de ubicación
-│   ├── TimeConfig.tsx   # Configuración temporal
-│   └── ResultsPanel.tsx # Panel de resultados
-├── hooks/               # Custom hooks
-├── lib/                 # Utilidades y configuraciones
+│   ├── Scene3D.tsx      # Domo 3D con posición y trayectoria lunar
+│   ├── Map2D.tsx        # Mapa interactivo 2D
+│   ├── Controls.tsx     # Controles de ubicación/fecha/hora
+│   ├── DataCards.tsx    # Tarjetas con datos lunares
+│   └── Header/Footer    # Cabecera y pie de página
+├── hooks/               # Custom hooks (useLunarData)
 ├── services/            # APIs y servicios
-├── types/               # Definiciones TypeScript
+├── types/               # Definiciones TypeScript (lunar.ts)
 ├── utils/               # Funciones utilitarias
+│   ├── lunar.ts         # Cálculos astronómicos (SunCalc)
+│   └── lunarTrack.ts    # Generación de trayectoria lunar
 ├── App.tsx              # Componente principal
 └── main.tsx             # Punto de entrada
 ```
@@ -127,6 +128,11 @@ pnpm build:prod       # Build optimizado para producción
 - **Geolocalización**: Detecta automáticamente la ubicación del usuario
 - **Búsqueda inteligente**: Autocompletado para ciudades y direcciones
 - **Actualización en tiempo real**: Cambios instantáneos al modificar parámetros
+- **Trayectoria lunar 3D**: Visualiza el arco completo de la Luna en el cielo (salida → culminación → puesta)
+  - Luna blanca/grisácea realista con línea de altitud hasta el horizonte
+  - Línea sólida sobre el horizonte, discontinua bajo el horizonte
+  - Marcadores de colores: verde (salida), naranja (culminación), rojo (puesta)
+  - Toggle para mostrar/ocultar con leyenda
 - **Animaciones**: Transiciones suaves y contadores animados
 - **Accesibilidad**: Soporte completo para teclado y lectores de pantalla
 
