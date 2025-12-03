@@ -1,15 +1,18 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { MoonPosition, MoonIllumination } from '../types/lunar';
+import type { MoonPosition, MoonIllumination, Location, LunarTrack } from '../types/lunar';
 import { getCardinalDirection } from '../utils/lunar';
+import { generateLunarTrack, trackPointToVector3, groupPointsByHorizon } from '../utils/lunarTrack';
 
 interface Scene3DProps {
   moonPosition: MoonPosition | null;
   moonIllumination: MoonIllumination | null;
+  location: Location;
+  datetime: Date;
 }
 
-export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps) {
+export default function Scene3D({ moonPosition, moonIllumination, location, datetime }: Scene3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<{
     scene: THREE.Scene;
@@ -22,8 +25,26 @@ export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps
     azimuthLine: THREE.Line;
     horizonRing: THREE.Line;
     cardinalLabels: THREE.Sprite[];
+    // Trayectoria lunar
+    trackLinesAbove: THREE.Line[];
+    trackLinesBelow: THREE.Line[];
+    riseMarker: THREE.Mesh | null;
+    setMarker: THREE.Mesh | null;
+    transitMarker: THREE.Mesh | null;
   } | null>(null);
   const animationRef = useRef<number>(0);
+
+  // Estado para mostrar/ocultar trayectoria
+  const [showTrack, setShowTrack] = useState(true);
+
+  // Calcular trayectoria lunar (memoizado para evitar recálculos innecesarios)
+  const lunarTrack = useMemo<LunarTrack | null>(() => {
+    if (!location || !datetime) return null;
+    return generateLunarTrack(datetime, location, {
+      intervalMinutes: 10,
+      hoursBeforeAfter: 12,
+    });
+  }, [datetime, location]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -253,6 +274,12 @@ export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps
       azimuthLine,
       horizonRing,
       cardinalLabels,
+      // Trayectoria lunar (inicialmente vacía)
+      trackLinesAbove: [],
+      trackLinesBelow: [],
+      riseMarker: null,
+      setMarker: null,
+      transitMarker: null,
     };
 
     // Animation loop
@@ -341,6 +368,151 @@ export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps
     
   }, [moonIllumination]);
 
+  // Update lunar track visualization
+  useEffect(() => {
+    if (!sceneRef.current) return;
+
+    const { scene, trackLinesAbove, trackLinesBelow, riseMarker, setMarker, transitMarker } = sceneRef.current;
+    const radius = 4;
+
+    // Limpiar líneas anteriores
+    trackLinesAbove.forEach(line => {
+      scene.remove(line);
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    });
+    trackLinesBelow.forEach(line => {
+      scene.remove(line);
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    });
+    sceneRef.current.trackLinesAbove = [];
+    sceneRef.current.trackLinesBelow = [];
+
+    // Limpiar marcadores anteriores
+    if (riseMarker) {
+      scene.remove(riseMarker);
+      riseMarker.geometry.dispose();
+      (riseMarker.material as THREE.Material).dispose();
+      sceneRef.current.riseMarker = null;
+    }
+    if (setMarker) {
+      scene.remove(setMarker);
+      setMarker.geometry.dispose();
+      (setMarker.material as THREE.Material).dispose();
+      sceneRef.current.setMarker = null;
+    }
+    if (transitMarker) {
+      scene.remove(transitMarker);
+      transitMarker.geometry.dispose();
+      (transitMarker.material as THREE.Material).dispose();
+      sceneRef.current.transitMarker = null;
+    }
+
+    // Si toggle está desactivado o no hay datos, salir
+    if (!showTrack || !lunarTrack || lunarTrack.points.length < 2) return;
+
+    // Agrupar puntos por horizonte
+    const { aboveHorizon, belowHorizon } = groupPointsByHorizon(lunarTrack.points);
+
+    // Crear líneas para segmentos sobre el horizonte (sólidas, opacidad alta)
+    aboveHorizon.forEach(segment => {
+      if (segment.length < 2) return;
+      const points3D = segment.map(point => {
+        const coords = trackPointToVector3(point, radius);
+        return new THREE.Vector3(coords.x, coords.y, coords.z);
+      });
+
+      // Curva suave con CatmullRomCurve3
+      const curve = new THREE.CatmullRomCurve3(points3D);
+      const curvePoints = curve.getPoints(Math.max(50, segment.length * 5));
+
+      const geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
+      const material = new THREE.LineBasicMaterial({
+        color: 0xffb800,
+        transparent: true,
+        opacity: 0.6,
+      });
+
+      const line = new THREE.Line(geometry, material);
+      scene.add(line);
+      sceneRef.current!.trackLinesAbove.push(line);
+    });
+
+    // Crear líneas para segmentos bajo el horizonte (discontinuas, opacidad baja)
+    belowHorizon.forEach(segment => {
+      if (segment.length < 2) return;
+      const points3D = segment.map(point => {
+        const coords = trackPointToVector3(point, radius);
+        return new THREE.Vector3(coords.x, coords.y, coords.z);
+      });
+
+      // Curva suave
+      const curve = new THREE.CatmullRomCurve3(points3D);
+      const curvePoints = curve.getPoints(Math.max(50, segment.length * 5));
+
+      const geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
+      const material = new THREE.LineDashedMaterial({
+        color: 0xffb800,
+        transparent: true,
+        opacity: 0.2,
+        dashSize: 0.15,
+        gapSize: 0.1,
+      });
+
+      const line = new THREE.Line(geometry, material);
+      line.computeLineDistances(); // Necesario para LineDashedMaterial
+      scene.add(line);
+      sceneRef.current!.trackLinesBelow.push(line);
+    });
+
+    // Marcador de salida (rise) - Verde
+    if (lunarTrack.risePoint) {
+      const pos = trackPointToVector3(lunarTrack.risePoint, radius);
+      const riseGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+      const riseMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ff88,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const newRiseMarker = new THREE.Mesh(riseGeometry, riseMaterial);
+      newRiseMarker.position.set(pos.x, pos.y, pos.z);
+      scene.add(newRiseMarker);
+      sceneRef.current.riseMarker = newRiseMarker;
+    }
+
+    // Marcador de puesta (set) - Rojo
+    if (lunarTrack.setPoint) {
+      const pos = trackPointToVector3(lunarTrack.setPoint, radius);
+      const setGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+      const setMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff4444,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const newSetMarker = new THREE.Mesh(setGeometry, setMaterial);
+      newSetMarker.position.set(pos.x, pos.y, pos.z);
+      scene.add(newSetMarker);
+      sceneRef.current.setMarker = newSetMarker;
+    }
+
+    // Marcador de tránsito (culminación) - Amarillo brillante
+    if (lunarTrack.transitPoint) {
+      const pos = trackPointToVector3(lunarTrack.transitPoint, radius);
+      const transitGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+      const transitMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffff00,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const newTransitMarker = new THREE.Mesh(transitGeometry, transitMaterial);
+      newTransitMarker.position.set(pos.x, pos.y, pos.z);
+      scene.add(newTransitMarker);
+      sceneRef.current.transitMarker = newTransitMarker;
+    }
+
+  }, [showTrack, lunarTrack]);
+
   return (
     <div className="relative">
       <div
@@ -352,6 +524,45 @@ export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps
       <div className="absolute top-4 left-4 bg-bg-overlay backdrop-blur-sm rounded-lg p-3 border border-border-subtle">
         <p className="text-body-sm text-text-secondary mb-1">Vista 3D del cielo</p>
         <p className="text-body-sm text-text-tertiary">Arrastra para rotar</p>
+      </div>
+
+      {/* Track toggle and legend */}
+      <div className="absolute top-4 right-4 bg-bg-overlay backdrop-blur-sm rounded-lg p-3 border border-border-subtle">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showTrack}
+            onChange={(e) => setShowTrack(e.target.checked)}
+            className="w-4 h-4 rounded border-border-default bg-bg-elevated accent-accent-secondary focus:ring-accent-primary/20"
+          />
+          <span className="text-body-sm text-text-secondary">
+            Trayectoria lunar
+          </span>
+        </label>
+
+        {/* Leyenda de marcadores */}
+        {showTrack && lunarTrack && (
+          <div className="mt-2 pt-2 border-t border-border-subtle space-y-1">
+            {lunarTrack.risePoint && (
+              <div className="flex items-center gap-2 text-body-sm">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#00ff88]" />
+                <span className="text-text-tertiary">Salida</span>
+              </div>
+            )}
+            {lunarTrack.transitPoint && (
+              <div className="flex items-center gap-2 text-body-sm">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#ffff00]" />
+                <span className="text-text-tertiary">Culminacion</span>
+              </div>
+            )}
+            {lunarTrack.setPoint && (
+              <div className="flex items-center gap-2 text-body-sm">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#ff4444]" />
+                <span className="text-text-tertiary">Puesta</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {moonPosition && (

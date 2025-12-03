@@ -106,6 +106,8 @@ function App() {
                 <Scene3D
                   moonPosition={lunarData?.position || null}
                   moonIllumination={lunarData?.illumination || null}
+                  location={location}
+                  datetime={datetime}
                 />
               </Suspense>
             </div>

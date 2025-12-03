@@ -66,3 +66,19 @@ export const CARDINAL_DIRECTIONS: CardinalDirection[] = [
   { label: 'O', degrees: 270 },
   { label: 'NO', degrees: 315 },
 ];
+
+/** Punto individual en la trayectoria lunar */
+export interface LunarTrackPoint {
+  datetime: Date;
+  altitude: number;  // grados, -90 a 90
+  azimuth: number;   // grados, 0-360 desde norte
+  isAboveHorizon: boolean;
+}
+
+/** Resultado de la trayectoria lunar */
+export interface LunarTrack {
+  points: LunarTrackPoint[];
+  risePoint: LunarTrackPoint | null;   // Punto de salida (transición bajo → sobre horizonte)
+  setPoint: LunarTrackPoint | null;    // Punto de puesta (transición sobre → bajo horizonte)
+  transitPoint: LunarTrackPoint | null; // Culminación (punto más alto)
+}
