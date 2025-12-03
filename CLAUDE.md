@@ -27,12 +27,24 @@ pnpm clean            # Remove node_modules, .pnpm-store, pnpm-lock.yaml + prune
 
 ### State Management Pattern
 
-The app uses a **custom hook-based architecture** centered around `useLunarData` hook (src/hooks/useLunarData.ts:31), which manages all lunar calculation state:
+The app uses a **custom hook-based architecture** centered around `useLunarData` hook (src/hooks/useLunarData.ts:33), which manages all lunar calculation state:
 
 - **Inputs**: `location` (lat/lon), `datetime`, `timezone`
 - **Output**: `lunarData` (position, illumination, times)
-- **Features**: Auto-refresh (configurable interval), user action tracking for database saves, timezone validation
+- **Features**: Auto-refresh (configurable interval), user action tracking for database saves, timezone validation, **intelligent auto-update pause**
 - **Flow**: Input changes → `calculate()` callback → `calculateLunarData()` utility → state update → component re-render
+
+### Auto-Update Behavior
+
+The hook includes intelligent auto-update that pauses when the user manually sets a datetime:
+
+- **State**: `isManualDatetime` tracks if user configured time manually
+- **When user changes datetime**: Auto-update pauses automatically (won't overwrite user's selection)
+- **Resume**: User clicks "Reanudar tiempo real" button to resume auto-updates
+- **Functions**:
+  - `setDatetime()`: Sets datetime and marks as manual (pauses auto-update)
+  - `resumeRealtime()`: Resets to current time and resumes auto-update
+- **Location**: `src/hooks/useLunarData.ts:95-116`
 
 ### Core Calculation Engine
 
@@ -153,6 +165,12 @@ For VPS deployment with Coolify:
 - Cause: `npm run build` script ran `npm install` again after `npm ci`
 - Solution: Execute build commands manually in Dockerfile
 - Result: Faster builds, more explicit
+
+**Issue 4: Auto-update overwrites manual datetime (FIXED)**
+- Cause: Auto-update interval executed `setDatetime(new Date())` every 60 seconds, overwriting any manually configured datetime
+- Solution: Added `isManualDatetime` state that pauses auto-update when user manually changes time
+- Location: `src/hooks/useLunarData.ts:95-116`
+- UX: "Reanudar tiempo real" button appears when auto-update is paused
 
 ### docker-compose.yml (Alternative)
 

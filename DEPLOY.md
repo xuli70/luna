@@ -489,6 +489,11 @@ Accede desde: `Application → Metrics`
    - Evitar `npm install` redundantes en el build script
    - Ejecutar comandos de build manualmente en el Dockerfile
 
+4. **Auto-Update UX** (Issue #4):
+   - El auto-update cada 60s sobrescribia la hora configurada manualmente por el usuario
+   - Solucion: Estado `isManualDatetime` que pausa auto-update cuando el usuario cambia la hora
+   - Boton "Reanudar tiempo real" para volver al modo automatico
+
 ---
 
 ## Soporte
