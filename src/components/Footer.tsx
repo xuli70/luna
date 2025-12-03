@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left">
             <p className="text-body-sm text-text-tertiary">
-              Desarrollado por Matrix Agent | Calculos astronomicos precisos basados en SunCalc
+              Desarrollado por XULI Master | Calculos astronomicos precisos basados en SunCalc
             </p>
             <p className="text-body-sm text-text-tertiary mt-1">
               Datos de mapas por OpenStreetMap y CARTO
