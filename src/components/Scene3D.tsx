@@ -514,75 +514,121 @@ export default function Scene3D({ moonPosition, moonIllumination, location, date
   }, [showTrack, lunarTrack]);
 
   return (
-    <div className="relative">
-      <div
-        ref={containerRef}
-        className="w-full h-[400px] lg:h-[500px] rounded-xl overflow-hidden border border-border-default bg-bg-base"
-      />
-      
-      {/* Info overlay */}
-      <div className="absolute top-4 left-4 bg-bg-overlay backdrop-blur-sm rounded-lg p-3 border border-border-subtle">
-        <p className="text-body-sm text-text-secondary mb-1">Vista 3D del cielo</p>
-        <p className="text-body-sm text-text-tertiary">Arrastra para rotar</p>
+    <div className="flex flex-col">
+      {/* 3D Canvas - clean, no overlays */}
+      <div className="relative">
+        <div
+          ref={containerRef}
+          className="w-full h-[400px] lg:h-[500px] rounded-t-xl overflow-hidden border border-b-0 border-border-default bg-bg-base"
+        />
+
+        {/* Minimal hint - fades out after interaction */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none">
+          <p className="text-body-sm text-text-tertiary/50 bg-bg-base/60 px-3 py-1 rounded-full">
+            Arrastra para rotar
+          </p>
+        </div>
       </div>
 
-      {/* Track toggle and legend */}
-      <div className="absolute top-4 right-4 bg-bg-overlay backdrop-blur-sm rounded-lg p-3 border border-border-subtle">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showTrack}
-            onChange={(e) => setShowTrack(e.target.checked)}
-            className="w-4 h-4 rounded border-border-default bg-bg-elevated accent-accent-secondary focus:ring-accent-primary/20"
-          />
-          <span className="text-body-sm text-text-secondary">
-            Trayectoria lunar
-          </span>
-        </label>
+      {/* Control bar - outside canvas */}
+      <div className="bg-bg-elevated rounded-b-xl border border-t-0 border-border-default px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* Left: Moon status */}
+          {moonPosition && (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-2.5 h-2.5 rounded-full ${
+                    moonPosition.altitude > 0
+                      ? 'bg-accent-secondary animate-pulse'
+                      : 'bg-text-tertiary'
+                  }`}
+                />
+                <span className="text-body-sm text-text-secondary">
+                  {moonPosition.altitude > 0 ? 'Luna visible' : 'Bajo horizonte'}
+                </span>
+              </div>
+              <div className="hidden sm:flex items-center gap-3 text-data-sm text-text-tertiary font-mono">
+                <span>Az: {moonPosition.azimuth.toFixed(1)}° {getCardinalDirection(moonPosition.azimuth)}</span>
+                <span className="text-border-subtle">|</span>
+                <span>Alt: {moonPosition.altitude.toFixed(1)}°</span>
+              </div>
+            </div>
+          )}
 
-        {/* Leyenda de marcadores */}
+          {/* Right: Track toggle and legend */}
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTrack}
+                onChange={(e) => setShowTrack(e.target.checked)}
+                className="w-4 h-4 rounded border-border-default bg-bg-base accent-accent-secondary focus:ring-accent-primary/20"
+              />
+              <span className="text-body-sm text-text-secondary">
+                Trayectoria
+              </span>
+            </label>
+
+            {/* Compact legend - inline */}
+            {showTrack && lunarTrack && (
+              <div className="hidden md:flex items-center gap-3 text-body-sm">
+                {lunarTrack.risePoint && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[#00ff88]" />
+                    <span className="text-text-tertiary">Salida</span>
+                  </div>
+                )}
+                {lunarTrack.transitPoint && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[#ffff00]" />
+                    <span className="text-text-tertiary">Culminación</span>
+                  </div>
+                )}
+                {lunarTrack.setPoint && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-[#ff4444]" />
+                    <span className="text-text-tertiary">Puesta</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile: Az/Alt data on separate row */}
+        {moonPosition && (
+          <div className="sm:hidden mt-2 pt-2 border-t border-border-subtle flex items-center gap-3 text-data-sm text-text-tertiary font-mono">
+            <span>Az: {moonPosition.azimuth.toFixed(1)}° {getCardinalDirection(moonPosition.azimuth)}</span>
+            <span className="text-border-subtle">|</span>
+            <span>Alt: {moonPosition.altitude.toFixed(1)}°</span>
+          </div>
+        )}
+
+        {/* Mobile: Legend on separate row */}
         {showTrack && lunarTrack && (
-          <div className="mt-2 pt-2 border-t border-border-subtle space-y-1">
+          <div className="md:hidden mt-2 pt-2 border-t border-border-subtle flex items-center gap-4 text-body-sm">
             {lunarTrack.risePoint && (
-              <div className="flex items-center gap-2 text-body-sm">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#00ff88]" />
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-[#00ff88]" />
                 <span className="text-text-tertiary">Salida</span>
               </div>
             )}
             {lunarTrack.transitPoint && (
-              <div className="flex items-center gap-2 text-body-sm">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#ffff00]" />
-                <span className="text-text-tertiary">Culminacion</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-[#ffff00]" />
+                <span className="text-text-tertiary">Culminación</span>
               </div>
             )}
             {lunarTrack.setPoint && (
-              <div className="flex items-center gap-2 text-body-sm">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#ff4444]" />
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-[#ff4444]" />
                 <span className="text-text-tertiary">Puesta</span>
               </div>
             )}
           </div>
         )}
       </div>
-
-      {moonPosition && (
-        <div className="absolute bottom-4 right-4 bg-bg-overlay backdrop-blur-sm rounded-lg p-3 border border-border-subtle">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2 text-body-sm">
-              <div className="w-3 h-3 rounded-full bg-accent-secondary animate-pulse" />
-              <span className="text-text-secondary">
-                {moonPosition.altitude > 0 ? 'Luna visible' : 'Luna bajo horizonte'}
-              </span>
-            </div>
-            <div className="text-data-sm text-text-tertiary font-mono">
-              Az: {moonPosition.azimuth.toFixed(1)}° ({getCardinalDirection(moonPosition.azimuth)})
-            </div>
-            <div className="text-data-sm text-text-tertiary font-mono">
-              Alt: {moonPosition.altitude.toFixed(1)}°
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
