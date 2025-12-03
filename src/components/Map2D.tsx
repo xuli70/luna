@@ -12,6 +12,7 @@ export default function Map2D({ location, moonPosition, onLocationChange }: Map2
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const arrowRef = useRef<L.Polyline | null>(null);
+  const arrowHeadRef = useRef<L.Marker | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Create custom marker icon
@@ -120,9 +121,14 @@ export default function Map2D({ location, moonPosition, onLocationChange }: Map2
   useEffect(() => {
     if (!mapRef.current || !moonPosition) return;
 
-    // Remove existing arrow
+    // Remove existing arrow and arrowhead
     if (arrowRef.current) {
       arrowRef.current.remove();
+      arrowRef.current = null;
+    }
+    if (arrowHeadRef.current) {
+      arrowHeadRef.current.remove();
+      arrowHeadRef.current = null;
     }
 
     // Only show arrow if moon is above horizon
@@ -169,7 +175,7 @@ export default function Map2D({ location, moonPosition, onLocationChange }: Map2
       iconAnchor: [8, 8],
     });
 
-    L.marker([endLat, endLon], { icon: arrowHead }).addTo(mapRef.current);
+    arrowHeadRef.current = L.marker([endLat, endLon], { icon: arrowHead }).addTo(mapRef.current);
 
   }, [moonPosition, location]);
 

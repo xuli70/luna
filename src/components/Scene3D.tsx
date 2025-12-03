@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { MoonPosition, MoonIllumination } from '../types/lunar';
+import { getCardinalDirection } from '../utils/lunar';
 
 interface Scene3DProps {
   moonPosition: MoonPosition | null;
@@ -18,6 +19,7 @@ export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps
     moon: THREE.Mesh;
     moonGlow: THREE.Mesh;
     altitudeLine: THREE.Line;
+    azimuthLine: THREE.Line;
     horizonRing: THREE.Line;
     cardinalLabels: THREE.Sprite[];
   } | null>(null);
@@ -160,6 +162,36 @@ export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps
     const altitudeLine = new THREE.Line(altitudeGeometry, altitudeLineMaterial);
     scene.add(altitudeLine);
 
+    // Azimuth line (ground projection from observer to moon direction)
+    const azimuthGeometry = new THREE.BufferGeometry();
+    const azimuthLineMaterial = new THREE.LineDashedMaterial({
+      color: 0xffb800,
+      dashSize: 0.2,
+      gapSize: 0.1,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const azimuthLine = new THREE.Line(azimuthGeometry, azimuthLineMaterial);
+    scene.add(azimuthLine);
+
+    // North indicator arrow on ground
+    const northArrowShape = new THREE.Shape();
+    northArrowShape.moveTo(0, 0.4);
+    northArrowShape.lineTo(-0.12, 0);
+    northArrowShape.lineTo(0.12, 0);
+    northArrowShape.closePath();
+    const northArrowGeometry = new THREE.ShapeGeometry(northArrowShape);
+    const northArrowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00d4ff,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const northArrow = new THREE.Mesh(northArrowGeometry, northArrowMaterial);
+    northArrow.rotation.x = -Math.PI / 2;
+    northArrow.position.set(0, 0.03, 4.3);
+    scene.add(northArrow);
+
     // Cardinal labels
     const cardinalLabels: THREE.Sprite[] = [];
     const cardinals = [
@@ -218,6 +250,7 @@ export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps
       moon,
       moonGlow,
       altitudeLine,
+      azimuthLine,
       horizonRing,
       cardinalLabels,
     };
@@ -255,7 +288,7 @@ export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps
   useEffect(() => {
     if (!sceneRef.current || !moonPosition) return;
 
-    const { moon, moonGlow, altitudeLine } = sceneRef.current;
+    const { moon, moonGlow, altitudeLine, azimuthLine } = sceneRef.current;
     const radius = 4;
 
     // Convert altitude (degrees) and azimuth (degrees from north) to 3D position
@@ -281,6 +314,18 @@ export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps
     ]);
     altitudeLine.geometry.dispose();
     altitudeLine.geometry = lineGeometry;
+
+    // Update azimuth line (ground projection)
+    const groundX = radius * Math.sin(azRad);
+    const groundZ = radius * Math.cos(azRad);
+    const azLineGeometry = new THREE.BufferGeometry();
+    azLineGeometry.setFromPoints([
+      new THREE.Vector3(0, 0.02, 0),
+      new THREE.Vector3(groundX, 0.02, groundZ),
+    ]);
+    azimuthLine.geometry.dispose();
+    azimuthLine.geometry = azLineGeometry;
+    azimuthLine.computeLineDistances();
 
   }, [moonPosition]);
 
@@ -311,11 +356,19 @@ export default function Scene3D({ moonPosition, moonIllumination }: Scene3DProps
 
       {moonPosition && (
         <div className="absolute bottom-4 right-4 bg-bg-overlay backdrop-blur-sm rounded-lg p-3 border border-border-subtle">
-          <div className="flex items-center gap-2 text-body-sm">
-            <div className="w-3 h-3 rounded-full bg-accent-secondary animate-pulse" />
-            <span className="text-text-secondary">
-              {moonPosition.altitude > 0 ? 'Luna visible' : 'Luna bajo horizonte'}
-            </span>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2 text-body-sm">
+              <div className="w-3 h-3 rounded-full bg-accent-secondary animate-pulse" />
+              <span className="text-text-secondary">
+                {moonPosition.altitude > 0 ? 'Luna visible' : 'Luna bajo horizonte'}
+              </span>
+            </div>
+            <div className="text-data-sm text-text-tertiary font-mono">
+              Az: {moonPosition.azimuth.toFixed(1)}° ({getCardinalDirection(moonPosition.azimuth)})
+            </div>
+            <div className="text-data-sm text-text-tertiary font-mono">
+              Alt: {moonPosition.altitude.toFixed(1)}°
+            </div>
           </div>
         </div>
       )}
