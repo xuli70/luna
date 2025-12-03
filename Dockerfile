@@ -16,7 +16,10 @@ COPY . .
 # Build the application
 ENV BUILD_MODE=prod
 ENV NODE_ENV=production
-RUN npm run build
+# Build manually: skip redundant npm install, use npx for binaries
+RUN rm -rf node_modules/.vite-temp && \
+    npx tsc -b && \
+    npx vite build
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine
